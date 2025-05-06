@@ -1,11 +1,7 @@
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
 @app.route("/mt5-bridge", methods=["POST"])
 def bridge():
     data = request.json
-    print("📩 MT5 Sent:", data)
+    print("📩 Received:", data)
 
     if data.get("type") == "price_update":
         symbol = data["payload"]["symbol"]
@@ -22,7 +18,3 @@ def bridge():
                 }
             })
     return jsonify({"type": "no_trade"})
-
-@app.route("/")
-def home():
-    return "✅ Mr. Trade Buddy Flask Server is Live!"
