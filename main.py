@@ -1,25 +1,28 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+import random
 
 app = FastAPI()
 
-# ✅ Add CORS settings here:
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Or set to your frontend domain
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Mock trading logic
+def get_fake_data(pair):
+    return {
+        "pair": pair.upper(),
+        "price": round(random.uniform(1000, 65000), 2),
+        "rsi": round(random.uniform(10, 90), 2),
+        "signal": random.choice(["Buy", "Sell", "Wait"])
+    }
 
-@app.get("/last-signal")
-async def last_signal():
-    return JSONResponse(content={
-        "payload": {
-            "symbol": "BTCUSDT",
-            "price": 62000,
-            "type": "buy",
-            "amount": 0.1
-        }
-    })
+class OrderRequest(BaseModel):
+    pair: str
+    action: str
+
+@app.get("/status/{pair}")
+async def get_status(pair: str):
+    data = get_fake_data(pair)
+    return data
+
+@app.post("/order")
+async def place_order(order: OrderRequest):
+    # You can integrate Binance/Exness API here
+    return {"message": f"{order.action.upper()} order placed for {order.pair}"}
