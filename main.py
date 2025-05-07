@@ -1,9 +1,19 @@
 from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 from websocket_manager import websocket_manager
 
 app = FastAPI()
+
+# ✅ CORS Fix
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or specify: ["https://autrz.netlify.app"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class OrderRequest(BaseModel):
     pair: str
