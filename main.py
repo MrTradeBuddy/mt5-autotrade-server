@@ -1,61 +1,42 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import requests
-from order_sender import send_order  # This handles real order execution
+from pydantic import BaseModel
 
 app = FastAPI()
 
-# ✅ Allow frontend from Netlify
-origins = [
-    "https://autrz.netlify.app",
-    "http://localhost:3000"  # for local dev
-]
-
+# ✅ Allow frontend hosted on Netlify to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["https://autrz.netlify.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ Live BTCUSDT Price + RSI Signal API
-@app.get("/status/btcusdt")
-def get_btc_status():
-    try:
-        # Live price from Binance
-        price_response = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT")
-        price_data = price_response.json()
-        price = float(price_data["price"])
+# 🛠️ Structure of order request
+class OrderRequest(BaseModel):
+    symbol: str
+    side: str  # "buy" or "sell"
 
-        # Dummy RSI logic (replace with real calculation or TradingView webhook logic)
-        rsi = 68.7  # for example
-        signal = "BUY" if rsi > 60 else "SELL" if rsi < 40 else "WAIT"
+@app.get("/")
+def read_root():
+    return {"message": "AutoTrade API is live!"}
 
-        return {
-            "price": round(price, 2),
-            "rsi": rsi,
-            "signal": signal
-        }
-    except Exception as e:
-        return {
-            "price": None,
-            "rsi": None,
-            "signal": "Error",
-            "error": str(e)
-        }
+# ✅ API to get signal status
+@app.get("/status/{symbol}")
+def get_status(symbol: str):
+    symbol = symbol.upper()
+    dummy_data = {
+        "BTCUSDT": {"price": 64321.22, "rsi": 61.3, "signal": "BUY"},
+        "EURUSD": {"price": 1.0855, "rsi": 52.0, "signal": "WAIT"},
+        "XAUUSD": {"price": 2320.75, "rsi": 47.9, "signal": "SELL"}
+    }
 
-# ✅ Real Trade Order API (Buy/Sell from UI)
+    if symbol in dummy_data:
+        return dummy_data[symbol]
+    else:
+        return {"error": "No data for this symbol"}
+
+# ✅ API to place Buy/Sell order
 @app.post("/order")
-async def place_order(req: Request):
-    try:
-        body = await req.json()
-        symbol = body.get("symbol")
-        side = body.get("side")
-
-        # Pass to WebSocket handler (MT5 or Exness bridge)
-        result = send_order(symbol, side)
-
-        return {"message": f"{side.upper()} order sent for {symbol}", "status": "success"}
-    except Exception as e:
-        return {"message": "Error placing order", "error": str(e)}
+def place_order(req: OrderRequest):
+    return {"message": f"{req.side.upper()} order sent for {req.symbol.upper()}"}
