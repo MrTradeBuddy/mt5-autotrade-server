@@ -1,22 +1,30 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from order_sender import send_order  # 🔁 Call to MT5 via WebSocket
+from order_sender import send_order  # Exness WebSocket trigger
 
 app = FastAPI()
 
+# ✅ CORS Setup (Allow Netlify Frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Change this to ["https://autrz.netlify.app"] for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ API Root Test
+@app.get("/")
+def root():
+    return {"status": "Backend Live ✅"}
+
+# ✅ Order Request Model
 class OrderRequest(BaseModel):
     pair: str
     action: str
 
+# ✅ POST Order Trigger to MT5/Exness
 @app.post("/order")
 async def place_order(order: OrderRequest):
     result = send_order(order.pair, order.action)
@@ -24,41 +32,12 @@ async def place_order(order: OrderRequest):
         "message": f"{order.action.upper()} order sent for {order.pair}",
         "result": result
     }
-from fastapi import FastAPI, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
-from websocket_manager import websocket_manager
 
-app = FastAPI()
-
-# ✅ CORS Fix
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Or specify: ["https://autrz.netlify.app"]
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-class OrderRequest(BaseModel):
-    pair: str
-    action: str
-
-@app.post("/order")
-async def place_order(order: OrderRequest):
-    message = {
-        "symbol": order.pair,
-        "action": order.action
+# ✅ GET Signal Status for UI
+@app.get("/status/btcusdt")
+def get_btc_status():
+    return {
+        "price": 62753.45,  # Live price or test value
+        "rsi": 72.1,
+        "signal": "BUY"
     }
-    await websocket_manager.send_to_all(json.dumps(message))
-    return {"message": f"{order.action.upper()} order sent for {order.pair}"}
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket_manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except:
-        websocket_manager.disconnect(websocket)
