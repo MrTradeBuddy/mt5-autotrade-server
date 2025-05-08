@@ -2,3 +2,5 @@ fastapi
 uvicorn
 websocket-client
 requests
+MetaTrader5
+websocket-client
