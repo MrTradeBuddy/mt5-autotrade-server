@@ -1,27 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from order_sender import send_order  # ✅ MT5 இல்லாத version
 
 app = FastAPI()
 
-# ✅ Allow frontend hosted on Netlify to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://autrz.netlify.app"],
+    allow_origins=["*"],  # Change to Netlify URL for security
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🛠️ Structure of order request
 class OrderRequest(BaseModel):
     symbol: str
-    side: str  # "buy" or "sell"
+    side: str
 
 @app.get("/")
 def read_root():
     return {"message": "AutoTrade API is live!"}
 
-# ✅ API to get signal status
 @app.get("/status/{symbol}")
 def get_status(symbol: str):
     symbol = symbol.upper()
@@ -31,20 +29,8 @@ def get_status(symbol: str):
         "XAUUSD": {"price": 2320.75, "rsi": 47.9, "signal": "SELL"}
     }
 
-    if symbol in dummy_data:
-        return dummy_data[symbol]
-    else:
-        return {"error": "No data for this symbol"}
+    return dummy_data.get(symbol, {"error": "No data for this symbol"})
 
-# ✅ API to place Buy/Sell order
 @app.post("/order")
 def place_order(req: OrderRequest):
-    return {"message": f"{req.side.upper()} order sent for {req.symbol.upper()}"}
-from order_sender import send_order
-
-@app.post("/order")
-def place_order(req: Request):
-    data = asyncio.run(req.json())
-    symbol = data.get("symbol")
-    action = data.get("action")
-    return send_order(symbol, action)
+    return send_order(req.symbol, req.side)
