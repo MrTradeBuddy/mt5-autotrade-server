@@ -40,3 +40,11 @@ def get_status(symbol: str):
 @app.post("/order")
 def place_order(req: OrderRequest):
     return {"message": f"{req.side.upper()} order sent for {req.symbol.upper()}"}
+from order_sender import send_order
+
+@app.post("/order")
+def place_order(req: Request):
+    data = asyncio.run(req.json())
+    symbol = data.get("symbol")
+    action = data.get("action")
+    return send_order(symbol, action)
