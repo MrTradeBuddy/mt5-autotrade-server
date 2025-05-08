@@ -1,36 +1,64 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from order_sender import send_order  # ✅ MT5 இல்லாத version
+from datetime import datetime
+from typing import List
 
 app = FastAPI()
 
+# ✅ Allow all CORS (for Netlify front-end)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to Netlify URL for security
+    allow_origins=["*"],  
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# 🧾 Signal History Memory Store
+signal_history = []
+
+# 📥 Order Request Model
 class OrderRequest(BaseModel):
     symbol: str
     side: str
 
-@app.get("/")
-def read_root():
-    return {"message": "AutoTrade API is live!"}
+# 📤 Signal Data Model
+class SignalResponse(BaseModel):
+    price: float
+    rsi: float
+    signal: str
 
-@app.get("/status/{symbol}")
-def get_status(symbol: str):
-    symbol = symbol.upper()
-    dummy_data = {
-        "BTCUSDT": {"price": 64321.22, "rsi": 61.3, "signal": "BUY"},
-        "EURUSD": {"price": 1.0855, "rsi": 52.0, "signal": "WAIT"},
-        "XAUUSD": {"price": 2320.75, "rsi": 47.9, "signal": "SELL"}
-    }
+# 🧠 Logic to simulate RSI + Price (Replace with real calculation)
+def get_signal(symbol: str):
+    import random
+    price = round(random.uniform(64000, 64500), 2)
+    rsi = round(random.uniform(30, 70), 1)
+    signal = "BUY" if rsi < 60 else "SELL"
 
-    return dummy_data.get(symbol, {"error": "No data for this symbol"})
+    # 📌 Add to history
+    signal_history.insert(0, {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "symbol": symbol.upper(),
+        "price": price,
+        "rsi": rsi,
+        "side": "Buy" if signal == "BUY" else "Sell",
+        "signal": signal,
+    })
 
+    return {"price": price, "rsi": rsi, "signal": signal}
+
+# 🚀 Endpoint 1: Signal Status (GET)
+@app.get("/status/{symbol}", response_model=SignalResponse)
+def status(symbol: str):
+    return get_signal(symbol)
+
+# 🚀 Endpoint 2: Order POST
 @app.post("/order")
-def place_order(req: OrderRequest):
-    return send_order(req.symbol, req.side)
+def place_order(order: OrderRequest):
+    return {"message": f"{order.side.upper()} order sent for {order.symbol.upper()}"}
+
+# 🚀 Endpoint 3: Signal History Table
+@app.get("/history")
+def get_history() -> List[dict]:
+    return signal_history
